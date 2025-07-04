@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ویرایشگر V2Ray</title>
+  <meta name="theme-color" content="#007bff">
+  <script src="https://cdn.lordicon.com/lordicon.js"></script>
+  <style>
+    :root {
+      --bg-light: #f5f5f5;
+      --bg-dark: #1e1e1e;
+      --text-light: #000;
+      --text-dark: #fff;
+      --input-bg-light: #fff;
+      --input-bg-dark: #2a2a2a;
+      --border-light: #ccc;
+      --border-dark: #444;
+      --btn-color: #007bff;
+      --max-width: 700px;
+    }
+
+    body {
+      font-family: sans-serif;
+      direction: rtl;
+      background: var(--bg-light);
+      color: var(--text-light);
+      padding: 20px;
+      transition: 0.3s all;
+      max-width: var(--max-width);
+      margin: auto;
+    }
+
+    .dark {
+      background: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    textarea, select, input, button {
+      width: 100%;
+      margin: 10px 0;
+      padding: 12px;
+      font-size: 1rem;
+      border: 1px solid var(--border-light);
+      background: var(--input-bg-light);
+      color: var(--text-light);
+      border-radius: 8px;
+    }
+
+    .dark textarea, .dark select, .dark input, .dark button {
+      border: 1px solid var(--border-dark);
+      background: var(--input-bg-dark);
+      color: var(--text-dark);
+    }
+
+    #output {
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      background: var(--input-bg-light);
+      padding: 10px;
+      border: 1px solid var(--border-light);
+      min-height: 150px;
+      color: var(--text-light);
+      border-radius: 8px;
+    }
+
+    .dark #output {
+      background: var(--input-bg-dark);
+      border: 1px solid var(--border-dark);
+      color: var(--text-dark);
+    }
+
+    button {
+      background: var(--btn-color);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      transition: 0.3s ease;
+    }
+
+    button:hover {
+      filter: brightness(1.1);
+    }
+
+    .summary {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .header-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header-icon">
+    <lord-icon
+      src="https://cdn.lordicon.com/nwfpiryp.json"
+      trigger="loop"
+      delay="1000"
+      colors="primary:#ebe6ef,secondary:#f9c9c0,tertiary:#ffc738,quaternary:#3a3346"
+      style="width:80px;height:80px">
+    </lord-icon>
+  </div>
+
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h3>ویرایشگر حرفه‌ای کانفیگ V2Ray</h3>
+    </div>
+    <button class="toggle-theme" onclick="toggleTheme()">🌓 تغییر تم</button>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <label for="internetType">نوع اینترنت:</label>
+  <select id="internetType" onchange="updateSummaryAndAutoStart()">
+    <option value="ALL">ALL</option>
+    <option value="Modem">Modem</option>
+    <option value="Irancell">Irancell</option>
+    <option value="Hamrah Aval">Hamrah Aval</option>
+  </select>
+
+  <label for="startNumber">عدد شروع:</label>
+  <div class="button-group">
+    <input type="number" id="startNumber" value="1">
+    <button class="update-start" onclick="updateStartFromLast()">🔁 استفاده از آخرین عدد</button>
+  </div>
+
+  <label for="inputConfigs">لیست کانفیگ‌ها (هر کانفیگ در یک خط):</label>
+  <textarea id="inputConfigs" rows="10"></textarea>
+
+  <button onclick="processConfigs()">⚙️ تبدیل کانفیگ‌ها</button>
+
+  <label for="output">خروجی:</label>
+  <div id="output"></div>
+  <div class="button-group">
+    <button class="copy-btn" onclick="copyToClipboard()">📋 کپی همه به کلیپ‌بورد</button>
+    <button class="reset-history" onclick="resetHistory()">🗑️ حذف تاریخچه</button>
+  </div>
+
+  <script>
+    let lastState = JSON.parse(localStorage.getItem('configStates') || '{}');
+    let currentTheme = localStorage.getItem('theme') || 'light';
+
+    function applyTheme() {
+      document.body.classList.toggle('dark', currentTheme === 'dark');
+    }
+
+    function toggleTheme() {
+      currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('theme', currentTheme);
+      applyTheme();
+    }
+
+    function updateSummaryAndAutoStart() {
+      const netType = document.getElementById('internetType').value;
+      if (lastState[netType]) {
+        const { start, end } = lastState[netType];
+        document.getElementById('summary').textContent = `📌 اینترنت ${netType} - آخرین بازه: ${start} تا ${end}`;
+        document.getElementById('startNumber').value = end + 1;
+      } else {
+        document.getElementById('summary').textContent = `📌 اینترنت ${netType} - هنوز استفاده نشده`;
+        document.getElementById('startNumber').value = 1;
+      }
+    }
+
+    function updateStartFromLast() {
+      const netType = document.getElementById('internetType').value;
+      if (lastState[netType]) {
+        const { end } = lastState[netType];
+        document.getElementById('startNumber').value = end + 1;
+      } else {
+        document.getElementById('startNumber').value = 1;
+      }
+    }
+
+    function processConfigs() {
+      const configs = document.getElementById('inputConfigs').value.trim().split(/\r?\n/);
+      const start = parseInt(document.getElementById('startNumber').value);
+      const netType = document.getElementById('internetType').value;
+      let output = '', num = start;
+
+      configs.forEach(line => {
+        if (!line.trim()) return;
+
+        let [link, tag] = line.split('#');
+        tag = `💎 @UKV2ray | ${netType} | ${String(num).padStart(4, '0')}`;
+
+        try {
+          let url = new URL(link);
+          let path = url.searchParams.get("path") || "";
+          let decodedPath = decodeURIComponent(path);
+          if (decodedPath.includes('@')) {
+            decodedPath = decodedPath.replace(/@[^/]+/, '@UKV2ray');
+          } else {
+            decodedPath += '@UKV2ray';
+          }
+          url.searchParams.set("path", encodeURIComponent(decodedPath));
+
+          output += url.toString() + '#' + tag + "\n";
+          num++;
+        } catch (e) {
+          output += line + '#' + tag + "\n";
+        }
+      });
+
+      lastState[netType] = { start: start, end: num - 1 };
+      localStorage.setItem('configStates', JSON.stringify(lastState));
+
+      document.getElementById('output').textContent = output.trim();
+      updateSummaryAndAutoStart();
+    }
+
+    function copyToClipboard() {
+      const outputEl = document.getElementById('output');
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(outputEl.textContent).then(() => {
+          alert('✅ همه کانفیگ‌ها کپی شد');
+        });
+      } else {
+        let textarea = document.createElement('textarea');
+        textarea.value = outputEl.textContent;
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+        alert('✅ همه کانفیگ‌ها کپی شد');
+      }
+    }
+
+    function resetHistory() {
+      if (confirm('آیا مطمئن هستید که می‌خواهید تاریخچه پاک شود؟')) {
+        localStorage.removeItem('configStates');
+        lastState = {};
+        updateSummaryAndAutoStart();
+      }
+    }
+
+    applyTheme();
+    updateSummaryAndAutoStart();
+  </script>
+</body>
+</html>
